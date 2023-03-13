@@ -6,6 +6,7 @@ library(ggrepel)
 
 
 data <- read.csv('/Users/moneeraalsuwailm/Desktop/codex1.csv', row.names = 1)
+data <- read.csv('data/codex1.csv.gz', row.names=1) #Kalen directory
 
 
 gexp <- data[,4:ncol(data)]
@@ -24,6 +25,20 @@ pos <- data[,1:2]
 # variance of each protein? To know which one to be normalized 
 variance <- apply(gexp, 2, var)
 hist(variance)
+
+df_var <- data.frame(variance)
+p <- ggplot(data = df_var, mapping = aes(x=log10(variance))) +
+  geom_histogram(breaks = seq(0,8), 
+                 binwidth = 1, 
+                 boundary=0, closed="right", 
+                 color="white", fill="black") +
+  scale_x_continuous(n.breaks=8) +
+  scale_y_continuous(n.breaks=10) +
+  labs(title="Variance before Normalization", 
+       x="log10(variance)", y = "frequency") +
+  theme_bw()
+
+p
 
 # Sort proteins by variance in descending order
 sorted_variances <- sort(variance, decreasing = TRUE)
@@ -49,6 +64,21 @@ norm_high_gexp <- log10(norm_high_gexp + 1)
 norm_high_variance <- apply(norm_high_gexp, 2, var)
 hist(norm_high_variance)
 
+df_norm_high_var <- data.frame(norm_high_variance)
+p_norm_high <- ggplot(data = df_norm_high_var , mapping = aes(x=log10(norm_high_variance))) +
+  geom_histogram(breaks = seq(-5,-1), 
+                 #binwidth = 1, 
+                 boundary=0, closed="right", 
+                 color="white", fill="black") +
+  #scale_x_continuous(n.breaks=8) +
+  #scale_y_continuous(n.breaks=10) +
+  labs(title="Variance after Normalization of Only Highest Variable Proteins", 
+       x="log10(variance)", y = "frequency") +
+  theme_bw()
+
+
+p_norm_high
+
 #variaince of protein in the y axess insted of expression 
 # Apply normalization to all proteins
 norm_gexp <- gexp
@@ -61,6 +91,69 @@ norm_gexp <- log10(norm_gexp + 1)
 # variance after normalization
 norm_variance <- apply(norm_gexp, 2, var)
 hist(norm_variance)
+
+df_norm_var <- data.frame(norm_variance)
+p_norm <- ggplot(data = df_norm_var , mapping = aes(x=log10(norm_variance))) +
+  geom_histogram(breaks = seq(-5,-1), 
+                 binwidth = 1, 
+                 boundary=0, closed="right", 
+                 color="white", fill="black") +
+  #scale_x_continuous(n.breaks=8) +
+  #scale_y_continuous(n.breaks=10) +
+  labs(title="Variance after Normalization of All Proteins", 
+       x="log10(variance)", y = "frequency") +
+  theme_bw()
+
+p_norm
+
+grid.arrange(p, p_norm_high, p_norm, ncol=3)
+
+## PCA analysis
+pca <- prcomp(gexp)
+
+#get number of PCAs
+cumulative_var <- cumsum(pca$sdev^2/sum(pca$sdev^2))
+
+plot(cumulative_var, xlab = "Number of Principal Components",
+     ylab = "Cumulative Proportion of Variance Explained", type = "b")
+
+desired_var <- 0.85 # for example, let's say we want to explain 85% of the variance
+num_pcs <- which(cumulative_var > desired_var)[1]
+
+num_pcs
+
+df <- gexp
+df$PC1 <- pca$x[, 1]
+df$PC2 <- pca$x[, 2]
+df$PC3 <- pca$x[, 3]
+
+#Plot first two principal components for CD15
+p1 <- ggplot(df, aes(x = PC1, y = PC2, color = CD15)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "CD15", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for CD15") +
+  xlab(paste0("PC1 (", round(pca$sdev[1]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
+
+#Plot first two principal components for Vimentin
+p2 <- ggplot(df, aes(x = PC2, y = PC3, color = Vimentin)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "Vimentin", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for Vimentin") +
+  xlab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC3 (", round(pca$sdev[3]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
+
+#Plot first two principal components for CD8
+p3 <- ggplot(df, aes(x = PC3, y = PC2, color = CD8)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "CD8", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for CD8") +
+  xlab(paste0("PC3 (", round(pca$sdev[3]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
+
+#Combine the two plots into one image
+grid.arrange(p1, p2, p3, ncol = 3)
+
 
 
 ## PCA analysis
@@ -105,6 +198,51 @@ p3 <- ggplot(df, aes(x = PC1, y = PC2, color = CD8)) +
   xlab(paste0("PC1 (", round(pca$sdev[1]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
   ylab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
 
+#Combine the two plots into one image
+grid.arrange(p1, p2, p3, ncol = 3)
+
+## PCA analysis
+pca <- prcomp(norm_high_gexp)
+
+#get number of PCAs
+cumulative_var <- cumsum(pca$sdev^2/sum(pca$sdev^2))
+
+plot(cumulative_var, xlab = "Number of Principal Components",
+     ylab = "Cumulative Proportion of Variance Explained", type = "b")
+
+desired_var <- 0.85 # for example, let's say we want to explain 85% of the variance
+num_pcs <- which(cumulative_var > desired_var)[1]
+
+num_pcs
+
+df <- norm_high_gexp
+df$PC1 <- pca$x[, 1]
+df$PC2 <- pca$x[, 2]
+df$PC3 <- pca$x[, 3]
+
+#Plot first two principal components for CD15
+p1 <- ggplot(df, aes(x = PC1, y = PC2, color = CD15)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "CD15", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for CD15") +
+  xlab(paste0("PC1 (", round(pca$sdev[1]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
+
+#Plot first two principal components for Vimentin
+p2 <- ggplot(df, aes(x = PC3, y = PC2, color = Vimentin)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "Vimentin", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for Vimentin") +
+  xlab(paste0("PC3 (", round(pca$sdev[3]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
+
+#Plot first two principal components for CD8
+p3 <- ggplot(df, aes(x = PC2, y = PC1, color = CD8)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "CD8", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for CD8") +
+  xlab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC1 (", round(pca$sdev[1]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
 
 #Combine the two plots into one image
 grid.arrange(p1, p2, p3, ncol = 3)
@@ -258,11 +396,15 @@ get_significant_genes <- function(cluster_number, com, gexp){
 pcs <- prcomp(norm_gexp)
 
 ## tSNE analysis
+set.seed(1)
 emb <- Rtsne(norm_gexp)
 
+#get number of clusters
+set.seed(1)
 get_kmeans_clusters(norm_gexp, ncol(norm_gexp))
 
-#get number of clusters
+#number of clusters
+set.seed(1)
 num_center = 9
 com <- kmeans(norm_gexp, centers=num_center)
 
@@ -274,45 +416,191 @@ plot_tnse_analysis_results(pos, emb, pcs, com)
 cluster_number = 3
 
 #get significant genes
-significant_genes <- get_significant_genes(cluster_number, com, gexp)
+significant_genes <- get_significant_genes(cluster_number, com, norm_gexp)
 most_significant_gene <- significant_genes[1]
 
 result1 <- paste("Cluster chosen = ", paste(cluster_number),"\n\nCase 1: All proteins normalized\n\nSignificant genes = ", paste(significant_genes, collapse = ", "), "\nMost significant gene = ", paste(most_significant_gene))
 cat(result1)
 
+## loop through each cluster to find differentially expressed genes for each cluster vs. remaining clusters
+volcano_plts <- lapply(seq_len(num_center), function(i) {
+  ## pick a cluster
+  cluster.of.interest <- names(which(com$cluster == i))
+  cluster.other <- names(which(com$cluster != i))
+  
+  
+  ## loop through my genes and test each one
+  out <- sapply(colnames(norm_gexp), function(g) {
+    a <- norm_gexp[cluster.of.interest, g]
+    b <- norm_gexp[cluster.other, g]
+    pvs <- wilcox.test(a,b,alternative='two.sided')$p.val
+    #pvs <- as.data.frame(pvs)
+    log2fc <- log2(mean(a)/mean(b))
+    #log2fc <- as.data.frame(log2fc)
+    c(pvs=pvs,log2fc=log2fc)
+  })
+  
+  ## volcano plot
+  # run Bonferroni correction determine a p value cutoff (conservative method with low false-positive rate but high false-negative rate as a trade-off)
+  cutoff.pvs <- 0.05/ncol(norm_gexp) # false-positive rate would be 1-(1-0.05/ncol(norm_gexp))^ncol(norm_gexp)
+  cutoff.log2fc <- 1
+  df_temp <- data.frame(pvs=out[1,], log2fc=out[2,])
+  ## prepare a data frame for plotting
+  df2 <- df_temp
+  # add a column of NAs to df2 titled diffexpressed
+  df2$diffexpressed <- 'NO'
+  # if log2fc > cutoff.log2fc and pvalue < cutoff.pvs, set as "Up" 
+  df2$diffexpressed[df2$log2fc > cutoff.log2fc & df2$pvs < cutoff.pvs] <- "Up"
+  # if log2fc < -cutoff.log2fc and pvalue < cutoff.pvs, set as "Down"
+  df2$diffexpressed[df2$log2fc < -cutoff.log2fc & df2$pvs < cutoff.pvs] <- "Down"
+  # add a column of NAs to df2 titled genelabel that will contain names of differentially expressed genes
+  df2$genelabel <- NA
+  df2$genelabel[df2$diffexpressed != 'NO'] <- rownames(df2)[df2$diffexpressed != 'NO']
+  
+  ## get the most significant genes (upregulated) from the chosen cluster
+  significant_genes <- df2$gene[df2$diffexpressed == 'Up']
+  #sort by p-value
+  significant_genes_sorted <- significant_genes[order(out[1,][significant_genes])]
+  #choose first one from list
+  most_significant_gene <- significant_genes_sorted[1]
+  
+  volcano_plt <- ggplot(df2, aes(x=log2fc,y=-log10(pvs), col=diffexpressed, label=genelabel)) +
+    geom_point() +
+    scale_color_manual(values = c('blue', 'black', 'red'),
+                       name = 'Expression',
+                       breaks = c('Down', 'NO', 'Up'),
+                       labels = c('Down', 'N.S.', 'Up')) +
+    ggtitle(paste('Cluster ',i,' vs. Other Clusters')) +
+    xlab('log2 fold change') +
+    ylab('-log10(p value)') +
+    geom_label_repel() +
+    geom_vline(xintercept = c(-cutoff.log2fc, cutoff.log2fc), col='black',linetype='dashed') +
+    geom_hline(yintercept = -log10(cutoff.pvs), col='black',linetype='dashed') +
+    theme_classic()
+  
+  list(volcano_plt, significant_genes, most_significant_gene)
+  
+})
 
+p <- grid.arrange(volcano_plts[[1]][[1]],
+                  volcano_plts[[2]][[1]],
+                  volcano_plts[[3]][[1]], 
+                  volcano_plts[[4]][[1]], 
+                  volcano_plts[[5]][[1]],
+                  volcano_plts[[6]][[1]], 
+                  volcano_plts[[7]][[1]], 
+                  volcano_plts[[8]][[1]],
+                  volcano_plts[[9]][[1]]
+)
 
+df <- data.frame(pos, emb$Y, pcs$x, celltype = as.factor(com$cluster))
+p3 <- ggplot(df, aes(x=x, y=y, col=celltype==8)) +
+  geom_point(size=0.01)
+p3
+p3 <- ggplot(df, aes(x=x, y=y, col=celltype==5)) +
+  geom_point(size=0.01)
+p3
 
 ######################################################
 # Using only proteins with high variance normalized
 ######################################################
 
 ## PCA analysis
-pcs <- prcomp(norm_high_gexp)
+pcs_high <- prcomp(norm_high_gexp)
 
 ## tSNE analysis
-emb <- Rtsne(norm_high_gexp)
+set.seed(1)
+emb_high <- Rtsne(norm_high_gexp)
 
 #get number of clusters
+set.seed(1)
 get_kmeans_clusters(norm_high_gexp, ncol(norm_high_gexp))
 
+
 #number of clusters
-num_center = 3
-com <- kmeans(norm_high_gexp, centers=num_center)
+set.seed(1)
+num_center_high = 5
+com_high <- kmeans(norm_high_gexp, centers=num_center_high)
+
 
 #plot tsne results
-plot_tnse_analysis_results(pos, emb, pcs, com)
-
+plot_tnse_analysis_results(pos, emb_high, pcs_high, com_high)
 
 #pick a cluster
-cluster_number = 3
+cluster_number = 1
 
 #get significant genes
-significant_genes <- get_significant_genes(cluster_number, com, gexp)
+significant_genes <- get_significant_genes(cluster_number, com_high, norm_high_gexp)
 most_significant_gene <- significant_genes[1]
 
 result2 <- paste("Cluster chosen = ", paste(cluster_number),"\n\nCase 2: High variance proteins normalized\n\nSignificant genes = ", paste(significant_genes, collapse = ", "), "\nMost significant gene = ", paste(most_significant_gene))
 cat(result2)
 
+## loop through each cluster to find differentially expressed genes for each cluster vs. remaining clusters
+volcano_plts <- lapply(seq_len(num_center_high), function(i) {
+  ## pick a cluster
+  cluster.of.interest <- names(which(com_high$cluster == i))
+  cluster.other <- names(which(com_high$cluster != i))
+  
+  
+  ## loop through my genes and test each one
+  out <- sapply(colnames(norm_high_gexp), function(g) {
+    a <- norm_gexp[cluster.of.interest, g]
+    b <- norm_gexp[cluster.other, g]
+    pvs <- wilcox.test(a,b,alternative='two.sided')$p.val
+    #pvs <- as.data.frame(pvs)
+    log2fc <- log2(mean(a)/mean(b))
+    #log2fc <- as.data.frame(log2fc)
+    c(pvs=pvs,log2fc=log2fc)
+  })
+  
+  ## volcano plot
+  # run Bonferroni correction determine a p value cutoff (conservative method with low false-positive rate but high false-negative rate as a trade-off)
+  cutoff.pvs <- 0.05/ncol(norm_high_gexp) # false-positive rate would be 1-(1-0.05/ncol(norm_gexp))^ncol(norm_gexp)
+  cutoff.log2fc <- 1
+  df_temp <- data.frame(pvs=out[1,], log2fc=out[2,])
+  ## prepare a data frame for plotting
+  df2 <- df_temp
+  # add a column of NAs to df2 titled diffexpressed
+  df2$diffexpressed <- 'NO'
+  # if log2fc > cutoff.log2fc and pvalue < cutoff.pvs, set as "Up" 
+  df2$diffexpressed[df2$log2fc > cutoff.log2fc & df2$pvs < cutoff.pvs] <- "Up"
+  # if log2fc < -cutoff.log2fc and pvalue < cutoff.pvs, set as "Down"
+  df2$diffexpressed[df2$log2fc < -cutoff.log2fc & df2$pvs < cutoff.pvs] <- "Down"
+  # add a column of NAs to df2 titled genelabel that will contain names of differentially expressed genes
+  df2$genelabel <- NA
+  df2$genelabel[df2$diffexpressed != 'NO'] <- rownames(df2)[df2$diffexpressed != 'NO']
+  
+  ## get the most significant genes (upregulated) from the chosen cluster
+  significant_genes <- df2$gene[df2$diffexpressed == 'Up']
+  #sort by p-value
+  significant_genes_sorted <- significant_genes[order(out[1,][significant_genes])]
+  #choose first one from list
+  most_significant_gene <- significant_genes_sorted[1]
+  
+  volcano_plt <- ggplot(df2, aes(x=log2fc,y=-log10(pvs), col=diffexpressed, label=genelabel)) +
+    geom_point() +
+    scale_color_manual(values = c('blue', 'black', 'red'),
+                       name = 'Expression',
+                       breaks = c('Down', 'NO', 'Up'),
+                       labels = c('Down', 'N.S.', 'Up')) +
+    ggtitle(paste('Cluster ',i,' vs. Other Clusters')) +
+    xlab('log2 fold change') +
+    ylab('-log10(p value)') +
+    geom_label_repel() +
+    geom_vline(xintercept = c(-cutoff.log2fc, cutoff.log2fc), col='black',linetype='dashed') +
+    geom_hline(yintercept = -log10(cutoff.pvs), col='black',linetype='dashed') +
+    theme_classic()
+  
+  list(volcano_plt, significant_genes, most_significant_gene)
+  
+})
+
+p <- grid.arrange(volcano_plts[[1]][[1]],
+                  volcano_plts[[2]][[1]],
+                  volcano_plts[[3]][[1]], 
+                  volcano_plts[[4]][[1]], 
+                  volcano_plts[[5]][[1]]
+                  )
 
 

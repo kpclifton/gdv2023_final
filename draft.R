@@ -23,6 +23,7 @@ pos <- data[,1:2]
 
 # variance of each protein? To know which one to be normalized 
 variance <- apply(gexp, 2, var)
+hist(variance)
 
 # Sort proteins by variance in descending order
 sorted_variances <- sort(variance, decreasing = TRUE)
@@ -44,6 +45,10 @@ for (protein in high_var_proteins) {
 norm_high_gexp[, -which(colnames(norm_high_gexp) %in% high_var_proteins)] <- 0
 norm_high_gexp <- log10(norm_high_gexp + 1)
 
+# variance after normalization
+norm_high_variance <- apply(norm_high_gexp, 2, var)
+hist(norm_high_variance)
+
 #variaince of protein in the y axess insted of expression 
 # Apply normalization to all proteins
 norm_gexp <- gexp
@@ -52,6 +57,58 @@ for (protein in colnames(norm_gexp)) {
 }
 
 norm_gexp <- log10(norm_gexp + 1)
+
+# variance after normalization
+norm_variance <- apply(norm_gexp, 2, var)
+hist(norm_variance)
+
+
+## PCA analysis
+pca <- prcomp(norm_gexp)
+
+#get number of PCAs
+cumulative_var <- cumsum(pca$sdev^2/sum(pca$sdev^2))
+
+plot(cumulative_var, xlab = "Number of Principal Components",
+     ylab = "Cumulative Proportion of Variance Explained", type = "b")
+
+desired_var <- 0.85 # for example, let's say we want to explain 85% of the variance
+num_pcs <- which(cumulative_var > desired_var)[1]
+
+num_pcs
+
+df <- norm_gexp
+df$PC1 <- pca$x[, 1]
+df$PC2 <- pca$x[, 2]
+
+#Plot first two principal components for CD15
+p1 <- ggplot(df, aes(x = PC1, y = PC2, color = CD15)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "CD15", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for CD15") +
+  xlab(paste0("PC1 (", round(pca$sdev[1]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
+
+#Plot first two principal components for Vimentin
+p2 <- ggplot(df, aes(x = PC1, y = PC2, color = Vimentin)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "Vimentin", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for Vimentin") +
+  xlab(paste0("PC1 (", round(pca$sdev[1]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
+
+#Plot first two principal components for CD8
+p3 <- ggplot(df, aes(x = PC1, y = PC2, color = CD8)) +
+  geom_point(size = 3) +
+  scale_color_gradient(name = "CD8", low = "green", high = "red") +
+  ggtitle("PCA of Spatial Transcriptomics Data for CD8") +
+  xlab(paste0("PC1 (", round(pca$sdev[1]^2/sum(pca$sdev^2)*100, 1), "% variance)")) +
+  ylab(paste0("PC2 (", round(pca$sdev[2]^2/sum(pca$sdev^2)*100, 1), "% variance)"))
+
+
+#Combine the two plots into one image
+grid.arrange(p1, p2, p3, ncol = 3)
+
 
 # Combine the normalized data for all proteins and high variance proteins
 combined_data <- rbind(data.frame(protein = rep("All Proteins", ncol(norm_gexp)), 

@@ -493,13 +493,38 @@ p <- grid.arrange(volcano_plts[[1]][[1]],
                   volcano_plts[[9]][[1]]
 )
 
-df <- data.frame(pos, emb$Y, pcs$x, celltype = as.factor(com$cluster))
-p3 <- ggplot(df, aes(x=x, y=y, col=celltype==8)) +
-  geom_point(size=0.01)
-p3
-p3 <- ggplot(df, aes(x=x, y=y, col=celltype==5)) +
-  geom_point(size=0.01)
-p3
+#### plot for a figure ####
+## set custom theme for plots
+plot_theme <- theme_classic() +
+  theme(
+    text = element_text(size = 25),
+    legend.key.size = unit(0.75, 'cm')
+  )
+
+# set the green color palette
+green_palette <- c("#e5f5e0", "#c7e9c0", "#a1d99b", "#74c476", "#41ab5d", "#238b45", "#006d2c", "#00441b")
+
+# df <- data.frame(pos, emb$Y, pcs$x, celltype = as.factor(com$cluster))
+# p3 <- ggplot(df, aes(x=x, y=y, col=celltype==8)) +
+#   geom_point(size=0.01)
+# p3
+# p3 <- ggplot(df, aes(x=x, y=y, col=celltype==5)) +
+#   geom_point(size=0.01)
+# p3
+
+cluster.of.interest <- 5
+gene.of.interest <- c('CD21', 'CD20', 'CD35', 'HLADR')
+df <- data.frame(pos, pcs$x[,1:2], emb$Y, celltype = as.factor(com$cluster), gene=norm_gexp[,gene.of.interest[1]])
+p8 <- ggplot(df, aes(x = x, y = y, col = celltype == cluster.of.interest)) +
+  geom_point(size = 0.5) +
+  scale_color_manual(values = c(green_palette[5], 'black'),
+                     name = paste('Cluster', cluster.of.interest),
+                     labels = c('FALSE', 'TRUE')) +
+  ggtitle(paste0('Spatial (Cluster ', cluster.of.interest, ')')) +
+  plot_theme
+
+p8
+
 
 ######################################################
 # Using only proteins with high variance normalized
